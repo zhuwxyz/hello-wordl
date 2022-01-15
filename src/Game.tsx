@@ -30,6 +30,7 @@ function Game(props: GameProps) {
   const [currentGuess, setCurrentGuess] = useState<string>("");
   const [wordLength, setWordLength] = useState(5);
   const [hint, setHint] = useState<string>(`Make your first guess!`);
+  const [possible, setPossible] = useState(dictionary.filter((word) => word.length === 5));
   const [srStatus, setSrStatus] = useState<string>(``);
   const [target, setTarget] = useState(() => {
     resetRng();
@@ -43,6 +44,7 @@ function Game(props: GameProps) {
     setCurrentGuess("");
     setHint("");
     setGameState(GameState.Playing);
+    setPossible(dictionary.filter((word) => word.length === wordLength));
     setGameNumber((x) => x + 1);
   };
 
@@ -71,6 +73,39 @@ function Game(props: GameProps) {
         return;
       }
       setGuesses((guesses) => guesses.concat([currentGuess]));
+
+      let targetCopy = target.slice();
+      const correctLetters: [string, number][] = [];
+      const mismatchedLetters: [string, number][] = [];
+      const missingLetters: string[] = [];
+      for (let i = 0; i < wordLength; i++) {
+        if (currentGuess[i] === target[i]) {
+          correctLetters.push([currentGuess[i], i]);
+        } else if (targetCopy.indexOf(currentGuess[i]) !== -1) {
+          mismatchedLetters.push([currentGuess[i], i]);
+          targetCopy = targetCopy.replace(currentGuess[i], '');
+        } else if (target.indexOf(currentGuess[i]) === -1) {
+          missingLetters.push(currentGuess[i]);
+        }
+      }
+
+      setPossible(possible.filter(word => {
+        if (missingLetters.some(letter => word.indexOf(letter) !== -1)) {
+          return false;
+        }
+        if (correctLetters.some(([letter, idx]) => word[idx] !== letter)) {
+          return false;
+        }
+        for (const [letter, idx] of mismatchedLetters) {
+          if (word[idx] === letter || word.indexOf(letter) === -1) {
+            return false;
+          }
+          word = word.replace(letter, " ");
+        }
+
+        return true;
+      }));
+
       setCurrentGuess((guess) => "");
       if (currentGuess === target) {
         setHint(
@@ -155,6 +190,7 @@ function Game(props: GameProps) {
             setGuesses([]);
             setTarget(randomTarget(length));
             setWordLength(length);
+            setPossible(dictionary.filter((word) => word.length === length));
             setHint(`${length} letters`);
           }}
         ></input>
@@ -176,6 +212,7 @@ function Game(props: GameProps) {
         <tbody>{tableRows}</tbody>
       </table>
       <p role="alert">{hint || `\u00a0`}</p>
+      <p>Words remaining: {possible.length}</p>
       {/* <p role="alert" className="Game-sr-feedback">
         {srStatus}
       </p> */}
